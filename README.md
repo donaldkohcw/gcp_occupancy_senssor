@@ -31,7 +31,8 @@ PowerShell wrapper used for scheduling.
   
   pip install -r requirements.txt
 
-------Running Manually-------
+************ Running Manually ****************
+
 python combine_daily.py
 
 This will:
