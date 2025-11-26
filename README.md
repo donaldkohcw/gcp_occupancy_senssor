@@ -23,8 +23,8 @@ It is designed to run on a Windows machine via a scheduled PowerShell task.
       7)Source: combine_daily.py 
 
 3. run_combine.ps1
-4. 
-PowerShell wrapper used for scheduling.
+   
+5. PowerShell wrapper used for scheduling.
 
       It typically:
    
