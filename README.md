@@ -7,13 +7,13 @@ It is designed to run on a Windows machine via a scheduled PowerShell task.
 1. combine_daily.py
 
       Python script that:
-      -Computes yesterday’s folder index
-      -Downloads each user’s logs from GCS using gsutil
-      -Stores them in a local UNC path
-      -Concatenates all log files into a single .txt output
-      -Runs once per day
-      -Users + folder mapping + bucket are hard-coded in the script.
-      -Source: combine_daily.py 
+      1)Computes yesterday’s folder index
+      2)Downloads each user’s logs from GCS using gsutil
+      3)Stores them in a local UNC path
+      4)Concatenates all log files into a single .txt output
+      5)Runs once per day
+      6)Users + folder mapping + bucket are hard-coded in the script.
+      7)Source: combine_daily.py 
 
 2. run_combine.ps1
 PowerShell wrapper used for scheduling.
