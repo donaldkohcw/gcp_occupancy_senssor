@@ -6,16 +6,16 @@ import subprocess
 # === CONFIG ===
 BUCKET = "aaai_bucket"
 IDS = {
+    "Marg": "3hXTzsJwgUkKcNHeHLrFYy",
     "Joey": "azmZYQDnLWC6DwGnuzEABg",
     "Adi": "Ghaaki8CbZvcZzvZFFRwu8",
     "Owain": "hwvhMAKawhLYaGByEXBVPs",
     "Workroom": "6AsvkRLNW4TsD5WrpKX2Z5",
-    "Marg": "3hXTzsJwgUkKcNHeHLrFYy",
 }
 
 #  Use UNC paths — no drive mapping
-LOCAL_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\PariC\Sensor_logs\all"
-OUTPUT_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\PariC\Sensor_logs"
+LOCAL_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\DonaldK\Sensor_logs\all"
+OUTPUT_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\DonaldK\Sensor_logs"
 
 
 # === STEP 1: Map date -> folder number (yesterday) ===
@@ -45,7 +45,7 @@ def download_gcs_folder(bucket_name, prefix, local_path):
 
     try:
         # Explicit path to gsutil for reliability (bypasses PATH issues)
-        GSUTIL_PATH = r"C:\Users\PariC\AppData\Local\Google\Cloud SDK\google-cloud-sdk\bin\gsutil.cmd"
+        GSUTIL_PATH = r"C:\Users\donaldk\google-cloud-sdk\bin\gsutil.cmd"
 
         # Ensure destination folder exists (gsutil won't auto-create)
         os.makedirs(local_path, exist_ok=True)
