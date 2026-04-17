@@ -27,6 +27,13 @@ import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+LINE_STYLE = {
+    "linestyle": "-",
+    "linewidth": 1.6,
+    "marker": "o",
+    "markersize": 3.0,
+}
+
 
 # --------- Helpers ---------
 def safe_json_from_line(line: str):
@@ -160,6 +167,28 @@ def export_csvs(base_out: Path, dfs_local):
             df.to_csv(index=False), encoding="utf-8"
         )
 
+
+def export_occupancy_metric_csvs(base_out: Path, occ_local: pd.DataFrame):
+    """Export occupancy sensor humidity and temperature into separate CSV files."""
+    if occ_local.empty:
+        return
+
+    base_cols = [c for c in ["dt_utc", "dt_local", "id"] if c in occ_local.columns]
+
+    if "humidity" in occ_local.columns:
+        hum_cols = base_cols + ["humidity"]
+        hum_df = occ_local[hum_cols].copy().sort_values(["id", "dt_local"] if "dt_local" in hum_cols else ["id"])
+        (base_out.with_name(f"{base_out.stem}_occupancy_humidity.csv")).write_text(
+            hum_df.to_csv(index=False), encoding="utf-8"
+        )
+
+    if "temperature" in occ_local.columns:
+        temp_cols = base_cols + ["temperature"]
+        temp_df = occ_local[temp_cols].copy().sort_values(["id", "dt_local"] if "dt_local" in temp_cols else ["id"])
+        (base_out.with_name(f"{base_out.stem}_occupancy_temperature.csv")).write_text(
+            temp_df.to_csv(index=False), encoding="utf-8"
+        )
+
 # --------- Plots ---------
 def plot_motion(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
     """Plot rising (ON) and falling (OFF) motion edges with local-time axis."""
@@ -228,7 +257,7 @@ def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.plot(grp["dt_local"], grp["temperature"], label=sid)
+        plt.plot(grp["dt_local"], grp["temperature"], label=sid, **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -257,7 +286,7 @@ def plot_zones(z_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name:
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
         if "temperatureSensorValue" in grp.columns:
-            plt.plot(grp["dt_local"], grp["temperatureSensorValue"], label=f"{sid} tempVal")
+            plt.plot(grp["dt_local"], grp["temperatureSensorValue"], label=f"{sid} tempVal", **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -268,6 +297,64 @@ def plot_zones(z_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name:
     plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
     png = outpath.with_name(f"{outpath.stem}_zones.png")
+    plt.savefig(png, dpi=150)
+    plt.close()
+
+
+def plot_occupancy_humidity(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
+    if occ_local.empty or "humidity" not in occ_local.columns:
+        return
+    wa_tz = pytz.timezone(tz_name)
+    df = occ_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
+    plt.figure(figsize=(12, 6))
+    for sid, grp in df.groupby("id"):
+        grp = grp.sort_values("dt_local")
+        plt.plot(grp["dt_local"], grp["humidity"], label=sid, **LINE_STYLE)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("Time (local)")
+    plt.ylabel("Humidity (%)")
+    plt.title(f"{title_prefix} — Occupancy Sensor Humidity")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.tight_layout()
+    png = outpath.with_name(f"{outpath.stem}_occupancy_humidity.png")
+    plt.savefig(png, dpi=150)
+    plt.close()
+
+
+def plot_occupancy_temperature(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
+    if occ_local.empty or "temperature" not in occ_local.columns:
+        return
+    wa_tz = pytz.timezone(tz_name)
+    df = occ_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
+    plt.figure(figsize=(12, 6))
+    for sid, grp in df.groupby("id"):
+        grp = grp.sort_values("dt_local")
+        plt.plot(grp["dt_local"], grp["temperature"], label=sid, **LINE_STYLE)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("Time (local)")
+    plt.ylabel("Temperature (°C)")
+    plt.title(f"{title_prefix} — Occupancy Sensor Temperature")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.tight_layout()
+    png = outpath.with_name(f"{outpath.stem}_occupancy_temperature.png")
     plt.savefig(png, dpi=150)
     plt.close()
 
@@ -292,6 +379,7 @@ def plot_garage(garage_local: pd.DataFrame, outpath: Path, title_prefix: str):
     png = outpath.with_name(f"{outpath.stem}_garage.png")
     plt.savefig(png, dpi=150)
     plt.close()
+
 def build_motion_windows(occ_local: pd.DataFrame) -> pd.DataFrame:
     """
     From occupancy rows with motionDetected booleans, return one row per
@@ -379,8 +467,8 @@ def main():
     ap = argparse.ArgumentParser(description="Parse Advantage Air logs and plot results.")
     ap.add_argument("logs", nargs="+", help="Path(s) to .log files (JSON lines).")
     ap.add_argument("--tz", default="Australia/Perth", help="IANA timezone (default: Australia/Perth)")
-    ap.add_argument("--plots", nargs="*", default=["motion", "temp", "zones", "garage"],
-                    choices=["motion", "temp", "zones", "garage"],
+    ap.add_argument("--plots", nargs="*", default=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp"],
+                    choices=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp"],
                     help="Which plots to render.")
     args = ap.parse_args()
 
@@ -415,6 +503,7 @@ def main():
             "garage": garage_local,
             "aircons": ac_local,
         })
+        export_occupancy_metric_csvs(base, occ_local)
         print(f"[INFO] CSVs written to: {outdir.resolve()}")
 
         # ===== NEW: build + save + plot occupancy ON windows =====
@@ -438,6 +527,10 @@ def main():
             plot_zones(zones_local, base, title_prefix, args.tz)
         if "garage" in args.plots:
             plot_garage(garage_local, base, title_prefix)
+        if "occ_humidity" in args.plots:
+            plot_occupancy_humidity(occ_local, base, title_prefix, args.tz)
+        if "occ_temp" in args.plots:
+            plot_occupancy_temperature(occ_local, base, title_prefix, args.tz)
         print(f"[INFO] Plots saved (if data present) to: {outdir.resolve()}")
 
         # Quick console summary
