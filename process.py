@@ -393,18 +393,27 @@ def plot_battery_level(occ_local: pd.DataFrame, outpath: Path, title_prefix: str
     plt.savefig(png, dpi=150)
     plt.close()
 
-def plot_garage(garage_local: pd.DataFrame, outpath: Path, title_prefix: str):
+def plot_garage(garage_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
     if garage_local.empty or "state" not in garage_local.columns:
         return
+    wa_tz = pytz.timezone(tz_name)
     # map states to integers for plotting
     state_map = {None: 0, "notKnown": 0, "closed": 1, "moving": 2, "open": 3}
     df = garage_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
     df["state_num"] = df["state"].map(state_map).fillna(0)
 
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
         plt.step(grp["dt_local"], grp["state_num"], where="post", label=sid)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
     plt.xlabel("Time (local)")
     plt.ylabel("State (0=unknown,1=closed,2=moving,3=open)")
     plt.title(f"{title_prefix} — Garage Door State")
@@ -561,7 +570,7 @@ def main():
         if "zones" in args.plots:
             plot_zones(zones_local, base, title_prefix, args.tz)
         if "garage" in args.plots:
-            plot_garage(garage_local, base, title_prefix)
+            plot_garage(garage_local, base, title_prefix, args.tz)
         if "occ_humidity" in args.plots:
             plot_occupancy_humidity(occ_local, base, title_prefix, args.tz)
         if "occ_temp" in args.plots:
