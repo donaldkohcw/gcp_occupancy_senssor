@@ -214,13 +214,24 @@ def plot_motion(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_na
     print(f"[INFO] Saved ON/OFF edge plot (Perth time) → {png}")
 
 
-def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str):
+def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
     if ts_local.empty or "temperature" not in ts_local.columns:
         return
+    wa_tz = pytz.timezone(tz_name)
+    df = ts_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
     plt.figure(figsize=(12, 6))
-    for sid, grp in ts_local.groupby("id"):
+    for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
         plt.plot(grp["dt_local"], grp["temperature"], label=sid)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
     plt.xlabel("Time (local)")
     plt.ylabel("Temperature (°C)")
     plt.title(f"{title_prefix} — Temperature Sensors")
@@ -231,14 +242,25 @@ def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str):
     plt.savefig(png, dpi=150)
     plt.close()
 
-def plot_zones(z_local: pd.DataFrame, outpath: Path, title_prefix: str):
+def plot_zones(z_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
     if z_local.empty:
         return
+    wa_tz = pytz.timezone(tz_name)
+    df = z_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
     plt.figure(figsize=(12, 6))
-    for sid, grp in z_local.groupby("id"):
+    for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
         if "temperatureSensorValue" in grp.columns:
             plt.plot(grp["dt_local"], grp["temperatureSensorValue"], label=f"{sid} tempVal")
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
     plt.xlabel("Time (local)")
     plt.ylabel("Zone Temp (°C)")
     plt.title(f"{title_prefix} — Zone temperatureSensorValue")
@@ -411,9 +433,9 @@ def main():
         if "motion" in args.plots:
             plot_motion(occ_local, base, title_prefix, args.tz)
         if "temp" in args.plots:
-            plot_temps(ts_local, base, title_prefix)
+            plot_temps(ts_local, base, title_prefix, args.tz)
         if "zones" in args.plots:
-            plot_zones(zones_local, base, title_prefix)
+            plot_zones(zones_local, base, title_prefix, args.tz)
         if "garage" in args.plots:
             plot_garage(garage_local, base, title_prefix)
         print(f"[INFO] Plots saved (if data present) to: {outdir.resolve()}")
