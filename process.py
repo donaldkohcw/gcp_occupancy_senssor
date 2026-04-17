@@ -358,6 +358,41 @@ def plot_occupancy_temperature(occ_local: pd.DataFrame, outpath: Path, title_pre
     plt.savefig(png, dpi=150)
     plt.close()
 
+
+def plot_battery_level(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
+    if occ_local.empty or "batteryLevel" not in occ_local.columns:
+        return
+    wa_tz = pytz.timezone(tz_name)
+    df = occ_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
+    df["batteryLevel"] = pd.to_numeric(df["batteryLevel"], errors="coerce")
+    df = df.dropna(subset=["dt_local", "batteryLevel"])
+    if df.empty:
+        return
+    df["battery_v"] = (df["batteryLevel"] / 255.0) * 5.0
+
+    plt.figure(figsize=(12, 6))
+    for sid, grp in df.groupby("id"):
+        grp = grp.sort_values("dt_local")
+        plt.plot(grp["dt_local"], grp["battery_v"], label=sid, **LINE_STYLE)
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("Time (local)")
+    plt.ylabel("Battery Voltage (V)")
+    plt.title(f"{title_prefix} — Occupancy Sensor Battery Voltage (x/255*5)")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.tight_layout()
+    png = outpath.with_name(f"{outpath.stem}_occupancy_battery.png")
+    plt.savefig(png, dpi=150)
+    plt.close()
+
 def plot_garage(garage_local: pd.DataFrame, outpath: Path, title_prefix: str):
     if garage_local.empty or "state" not in garage_local.columns:
         return
@@ -467,8 +502,8 @@ def main():
     ap = argparse.ArgumentParser(description="Parse Advantage Air logs and plot results.")
     ap.add_argument("logs", nargs="+", help="Path(s) to .log files (JSON lines).")
     ap.add_argument("--tz", default="Australia/Perth", help="IANA timezone (default: Australia/Perth)")
-    ap.add_argument("--plots", nargs="*", default=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp"],
-                    choices=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp"],
+    ap.add_argument("--plots", nargs="*", default=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
+                    choices=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
                     help="Which plots to render.")
     args = ap.parse_args()
 
@@ -531,6 +566,8 @@ def main():
             plot_occupancy_humidity(occ_local, base, title_prefix, args.tz)
         if "occ_temp" in args.plots:
             plot_occupancy_temperature(occ_local, base, title_prefix, args.tz)
+        if "battery" in args.plots:
+            plot_battery_level(occ_local, base, title_prefix, args.tz)
         print(f"[INFO] Plots saved (if data present) to: {outdir.resolve()}")
 
         # Quick console summary
