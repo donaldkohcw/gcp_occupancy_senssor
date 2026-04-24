@@ -210,7 +210,11 @@ def plot_motion(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_na
         df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
     # -----------------------------------------------------
 
-    df["motionDetected"] = df["motionDetected"].fillna(False).astype(bool)
+    # Ignore rows where motion state is missing; only explicit True/False should drive edges.
+    df = df[df["motionDetected"].notna()].copy()
+    if df.empty:
+        return
+    df["motionDetected"] = df["motionDetected"].astype(bool)
     df = df.sort_values(["id", "dt_local"])
     df["prev"] = df.groupby("id")["motionDetected"].shift(fill_value=False)
 
@@ -435,7 +439,11 @@ def build_motion_windows(occ_local: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=["id","start_local","end_local","duration_s"])
 
     df = occ_local.copy()
-    df["motionDetected"] = df["motionDetected"].fillna(False).astype(bool)
+    # Ignore missing motion states to avoid synthetic OFF/ON transitions.
+    df = df[df["motionDetected"].notna()].copy()
+    if df.empty:
+        return pd.DataFrame(columns=["id","start_local","end_local","duration_s"])
+    df["motionDetected"] = df["motionDetected"].astype(bool)
     df = df.sort_values(["id", "dt_local"])
 
     windows = []
@@ -480,7 +488,7 @@ def plot_motion_windows(windows_df: pd.DataFrame, outpath: Path, title_prefix: s
             windows_df[col] = pd.to_datetime(windows_df[col], utc=True).dt.tz_convert(wa_tz)
     # ---------------------------------
 
-    sensor_ids = list(windows_df["id"].drop_duplicates())
+    sensor_ids = sorted(windows_df["id"].dropna().astype(str).unique().tolist())
     y_map = {sid: idx for idx, sid in enumerate(sensor_ids)}
 
     plt.figure(figsize=(12, 6))
@@ -493,6 +501,8 @@ def plot_motion_windows(windows_df: pd.DataFrame, outpath: Path, title_prefix: s
 
     # X-axis formatting with date + AM/PM
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    ax.set_yticks(list(y_map.values()))
+    ax.set_yticklabels(sensor_ids)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel("Time (local)")
     plt.ylabel("Sensor ID")
