@@ -1,11 +1,14 @@
 import argparse
 import datetime
 import os
-import subprocess
 from zoneinfo import ZoneInfo
+from google.cloud import storage
+from google.auth import default as auth_default
+from google.auth.exceptions import DefaultCredentialsError
 
 # === CONFIG ===
 BUCKET = "aaai_bucket"
+PROJECT = "aaaiai"
 IDS = {
     "Marg": "3hXTzsJwgUkKcNHeHLrFYy",
     "Joey": "azmZYQDnLWC6DwGnuzEABg",
@@ -57,51 +60,49 @@ def parse_args():
     return parser.parse_args()
 
 
-# === STEP 2: High-speed download using gsutil ===
+# === STEP 2: Download using google-cloud-storage Python library ===
 def download_gcs_folder(bucket_name, prefix, local_path):
-    """Download from GCS with gsutil and fall back to gcloud storage cp."""
+    """Download from GCS using the google-cloud-storage Python library."""
     os.makedirs(local_path, exist_ok=True)
 
-    # Convert Windows backslashes to forward slashes for gsutil
-    local_path_fixed = local_path.replace("\\", "/")
-
     src = f"gs://{bucket_name}/{prefix}"
-    print(f"Requested copy: {src} -> \"{local_path_fixed}\"")
+    print(f"Requested copy: {src} -> \"{local_path}\"")
 
-    commands = [
-        (
-            "gcloud storage(explicit)",
-            [
-                r"C:\Users\donaldk\google-cloud-sdk\bin\gcloud.cmd",
-                "storage",
-                "cp",
-                "--recursive",
-                src,
-                local_path,
-            ],
-        ),
-        (
-            "gsutil(explicit)",
-            [r"C:\Users\donaldk\google-cloud-sdk\bin\gsutil.cmd", "-m", "cp", "-r", src, local_path],
-        ),
-        ("gsutil(PATH)", ["gsutil", "-m", "cp", "-r", src, local_path]),
-        ("gcloud storage", ["gcloud", "storage", "cp", "--recursive", src, local_path]),
-    ]
-
-    for label, cmd in commands:
-        print(f"Running [{label}]: {' '.join(cmd)}")
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-            return True
-        except FileNotFoundError:
-            print(f"{label} not found on PATH.")
-        except subprocess.CalledProcessError as e:
-            stderr = (e.stderr or "").strip()
-            stdout = (e.stdout or "").strip()
-            details = stderr if stderr else stdout
-            print(f"{label} failed for {prefix}: {details or str(e)}")
-
-    return False
+    try:
+        client = storage.Client(project=PROJECT)
+        bucket = client.bucket(bucket_name)
+        blobs = list(bucket.list_blobs(prefix=prefix))
+        
+        if not blobs:
+            print(f"No files found in {src}")
+            return False
+        
+        for blob in blobs:
+            # Skip empty "folder" blobs
+            if blob.name.endswith('/'):
+                continue
+            
+            # Extract file name and create local directory structure
+            relative_path = blob.name[len(prefix):]
+            local_file = os.path.join(local_path, relative_path)
+            os.makedirs(os.path.dirname(local_file), exist_ok=True)
+            
+            # Download the blob
+            blob.download_to_filename(local_file)
+            print(f"Downloaded: {blob.name}")
+        
+        return True
+    except DefaultCredentialsError as e:
+        print(f"\n[ERROR] Authentication failed: {str(e)}")
+        print("\nPlease authenticate with Google Cloud:")
+        print("1. Set GOOGLE_APPLICATION_CREDENTIALS environment variable to a service account key JSON file")
+        print("   Example: $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\path\\to\\key.json'")
+        print("\nOR")
+        print("2. Run: python authenticate_gcp.py (and follow the browser login)")
+        return False
+    except Exception as e:
+        print(f"Failed to download from {src}: {str(e)}")
+        return False
 
 
 # === STEP 3: Combine all files ===
@@ -155,6 +156,22 @@ def process_user(name, folder_num, day_label):
 
 # === MAIN ===
 def main():
+    # Check if credentials are available
+    try:
+        auth_default()
+    except DefaultCredentialsError:
+        print("[ERROR] Google Cloud credentials not found!")
+        print("\nTo set up authentication:")
+        print("\n1. If you have a service account key JSON file:")
+        print("   Set the environment variable:")
+        print("   $env:GOOGLE_APPLICATION_CREDENTIALS = 'C:\\path\\to\\service-account-key.json'")
+        print("   Then run this script again.")
+        print("\n2. If you don't have a key file:")
+        print("   a) Go to: https://console.cloud.google.com/")
+        print("   b) Create a service account and download the JSON key")
+        print("   c) Set the environment variable as shown above")
+        return
+    
     args = parse_args()
     day_failures = {}
     targets = []
