@@ -10,7 +10,7 @@ from google.auth.exceptions import DefaultCredentialsError
 BUCKET = "aaai_bucket"
 PROJECT = "aaaiai"
 IDS = {
-    "Marg": "3hXTzsJwgUkKcNHeHLrFYy",
+    #"Marg": "3hXTzsJwgUkKcNHeHLrFYy",
     "Joey": "azmZYQDnLWC6DwGnuzEABg",
     "Adi": "Ghaaki8CbZvcZzvZFFRwu8",
     "Owain": "hwvhMAKawhLYaGByEXBVPs",

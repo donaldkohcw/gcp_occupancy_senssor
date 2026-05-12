@@ -19,6 +19,7 @@ from pathlib import Path
 
 
 USERS = ["Marg", "Joey", "Adi", "Owain", "Workroom"]
+#USERS = ["Workroom"]
 SENSOR_LOGS_BASE = Path(r"X:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs")
 BASE_FOLDER_NUM = 20402
 BASE_DATE = datetime.date(2025, 11, 10)
@@ -60,7 +61,20 @@ def main() -> int:
         print(f"[ERROR] No input files found for folder {folder_num} ({day_label}).")
         return 1
 
-    cmd = [sys.executable, str(Path(__file__).with_name("process.py"))] + logs
+    cmd = [
+        sys.executable,
+        str(Path(__file__).with_name("process.py")),
+    ] + logs + [
+        "--plots",
+        "motion",
+        "motion_dots",
+        "temp",
+        "zones",
+        "garage",
+        "occ_humidity",
+        "occ_temp",
+        "battery",
+    ]
     print(f"[INFO] Running: {' '.join(cmd)}")
     result = subprocess.run(cmd)
     return int(result.returncode)

@@ -247,6 +247,55 @@ def plot_motion(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_na
     print(f"[INFO] Saved ON/OFF edge plot (Perth time) → {png}")
 
 
+def plot_motion_dots(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
+    """Plot motion ON/OFF samples as dots with local-time axis."""
+    if occ_local.empty or "motionDetected" not in occ_local.columns:
+        return
+
+    import matplotlib.dates as mdates
+    import matplotlib.lines as mlines
+    import pytz
+    wa_tz = pytz.timezone(tz_name)
+
+    df = occ_local.copy()
+    df["dt_local"] = pd.to_datetime(df["dt_local"], errors="coerce")
+    if getattr(df["dt_local"].dt, "tz", None) is None:
+        df["dt_local"] = df["dt_local"].dt.tz_localize("UTC").dt.tz_convert(wa_tz)
+    else:
+        df["dt_local"] = df["dt_local"].dt.tz_convert(wa_tz)
+
+    df = df[df["motionDetected"].notna()].copy()
+    if df.empty:
+        return
+    df["motionDetected"] = df["motionDetected"].astype(bool)
+    df = df.sort_values(["id", "dt_local"])
+
+    plt.figure(figsize=(12, 6))
+    for sid, grp in df.groupby("id"):
+        on = grp[grp["motionDetected"]]
+        off = grp[~grp["motionDetected"]]
+        if not on.empty:
+            plt.scatter(on["dt_local"], [sid] * len(on), color="green", marker="o", s=40)
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
+    plt.xticks(rotation=45, ha="right")
+    plt.xlabel("Time (local)")
+    plt.ylabel("Sensor ID")
+    plt.title(f"{title_prefix} — Motion ON Samples as Dots (local time)")
+    legend_handles = [
+        mlines.Line2D([], [], color="green", marker="o", linestyle="None", markersize=8, label="ON"),
+    ]
+    ax.legend(handles=legend_handles, bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.tight_layout()
+
+    png = outpath.with_name(f"{outpath.stem}_motion_dots.png")
+    plt.savefig(png, dpi=150)
+    plt.close()
+    print(f"[INFO] Saved dot motion plot (Perth time) → {png}")
+
+
 def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name: str = "Australia/Perth"):
     if ts_local.empty or "temperature" not in ts_local.columns:
         return
@@ -521,8 +570,8 @@ def main():
     ap = argparse.ArgumentParser(description="Parse Advantage Air logs and plot results.")
     ap.add_argument("logs", nargs="+", help="Path(s) to .log files (JSON lines).")
     ap.add_argument("--tz", default="Australia/Perth", help="IANA timezone (default: Australia/Perth)")
-    ap.add_argument("--plots", nargs="*", default=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
-                    choices=["motion", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
+    ap.add_argument("--plots", nargs="*", default=["motion", "motion_dots", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
+                    choices=["motion", "motion_dots", "temp", "zones", "garage", "occ_humidity", "occ_temp", "battery"],
                     help="Which plots to render.")
     args = ap.parse_args()
 
@@ -575,6 +624,8 @@ def main():
         title_prefix = p.stem
         if "motion" in args.plots:
             plot_motion(occ_local, base, title_prefix, args.tz)
+        if "motion_dots" in args.plots:
+            plot_motion_dots(occ_local, base, title_prefix, args.tz)
         if "temp" in args.plots:
             plot_temps(ts_local, base, title_prefix, args.tz)
         if "zones" in args.plots:
