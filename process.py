@@ -18,6 +18,7 @@ Usage
 """
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -26,6 +27,7 @@ import pandas as pd
 import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib import colormaps
 
 LINE_STYLE = {
     "linestyle": "-",
@@ -33,6 +35,17 @@ LINE_STYLE = {
     "marker": "o",
     "markersize": 3.0,
 }
+
+_ID_PALETTE = colormaps["tab20"].colors + colormaps["tab20b"].colors + colormaps["tab20c"].colors
+
+
+def color_for_id(sid: str):
+    """Deterministic color for a sensor id, stable across runs/days regardless
+    of which other sensors are present (unlike matplotlib's default color cycle,
+    which assigns colors by order-of-appearance)."""
+    digest = hashlib.md5(str(sid).encode("utf-8")).hexdigest()
+    idx = int(digest, 16) % len(_ID_PALETTE)
+    return _ID_PALETTE[idx]
 
 
 # --------- Helpers ---------
@@ -223,13 +236,13 @@ def plot_motion(occ_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_na
 
     plt.figure(figsize=(12, 6))
 
-    # Rising edges: green circles
+    # Rising edges: circles
     for sid, grp in rises.groupby("id"):
-        plt.scatter(grp["dt_local"], [sid]*len(grp), s=40, marker="o", label=f"{sid} ON")
+        plt.scatter(grp["dt_local"], [sid]*len(grp), s=40, marker="o", color=color_for_id(sid), label=f"{sid} ON")
 
-    # Falling edges: red crosses
+    # Falling edges: crosses
     for sid, grp in falls.groupby("id"):
-        plt.scatter(grp["dt_local"], [sid]*len(grp), s=50, marker="x", label=f"{sid} OFF")
+        plt.scatter(grp["dt_local"], [sid]*len(grp), s=50, marker="x", color=color_for_id(sid), label=f"{sid} OFF")
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))  # date + AM/PM
@@ -310,7 +323,7 @@ def plot_temps(ts_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.plot(grp["dt_local"], grp["temperature"], label=sid, **LINE_STYLE)
+        plt.plot(grp["dt_local"], grp["temperature"], label=sid, color=color_for_id(sid), **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -339,7 +352,7 @@ def plot_zones(z_local: pd.DataFrame, outpath: Path, title_prefix: str, tz_name:
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
         if "temperatureSensorValue" in grp.columns:
-            plt.plot(grp["dt_local"], grp["temperatureSensorValue"], label=f"{sid} tempVal", **LINE_STYLE)
+            plt.plot(grp["dt_local"], grp["temperatureSensorValue"], label=f"{sid} tempVal", color=color_for_id(sid), **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -368,7 +381,7 @@ def plot_occupancy_humidity(occ_local: pd.DataFrame, outpath: Path, title_prefix
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.plot(grp["dt_local"], grp["humidity"], label=sid, **LINE_STYLE)
+        plt.plot(grp["dt_local"], grp["humidity"], label=sid, color=color_for_id(sid), **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -397,7 +410,7 @@ def plot_occupancy_temperature(occ_local: pd.DataFrame, outpath: Path, title_pre
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.plot(grp["dt_local"], grp["temperature"], label=sid, **LINE_STYLE)
+        plt.plot(grp["dt_local"], grp["temperature"], label=sid, color=color_for_id(sid), **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -432,7 +445,7 @@ def plot_battery_level(occ_local: pd.DataFrame, outpath: Path, title_prefix: str
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.plot(grp["dt_local"], grp["battery_v"], label=sid, **LINE_STYLE)
+        plt.plot(grp["dt_local"], grp["battery_v"], label=sid, color=color_for_id(sid), **LINE_STYLE)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
@@ -463,7 +476,7 @@ def plot_garage(garage_local: pd.DataFrame, outpath: Path, title_prefix: str, tz
     plt.figure(figsize=(12, 6))
     for sid, grp in df.groupby("id"):
         grp = grp.sort_values("dt_local")
-        plt.step(grp["dt_local"], grp["state_num"], where="post", label=sid)
+        plt.step(grp["dt_local"], grp["state_num"], where="post", label=sid, color=color_for_id(sid))
     ax = plt.gca()
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d %I:%M %p", tz=wa_tz))
     plt.xticks(rotation=45, ha="right")
