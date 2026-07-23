@@ -11,8 +11,8 @@ BUCKET = "aaai_bucket"
 PROJECT = "aaaiai"
 IDS = {
     #"Marg": "3hXTzsJwgUkKcNHeHLrFYy",
-    "Joey": "azmZYQDnLWC6DwGnuzEABg",
-    "Adi": "Ghaaki8CbZvcZzvZFFRwu8",
+    "Joey": "7oTqUHXbg6h9WZgCprNiC3",
+    "Adi": "kg9fJyEN92soTozsKVBxFP",
     "Owain": "hwvhMAKawhLYaGByEXBVPs",
     "Workroom": "6AsvkRLNW4TsD5WrpKX2Z5",
 }

@@ -18,8 +18,8 @@ import sys
 from pathlib import Path
 
 
-USERS = ["Marg", "Joey", "Adi", "Owain", "Workroom"]
-#USERS = ["Workroom"]
+#USERS = ["Marg", "Joey", "Adi", "Owain", "Workroom"]
+USERS = ["Joey", "Adi", "Owain", "Workroom"]
 SENSOR_LOGS_BASE = Path(r"X:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs")
 BASE_FOLDER_NUM = 20402
 BASE_DATE = datetime.date(2025, 11, 10)
