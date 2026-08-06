@@ -17,9 +17,8 @@ IDS = {
     "Workroom": "6AsvkRLNW4TsD5WrpKX2Z5",
 }
 
-#  Use UNC paths — no drive mapping
-LOCAL_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\DonaldK\Sensor_logs\all"
-OUTPUT_BASE = r"\\adair-file2\RnD\RDrive\R&D\STAFF FOLDERS\DonaldK\Sensor_logs"
+LOCAL_BASE = r"V:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs\all"
+OUTPUT_BASE = r"V:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs"
 LOCAL_TZ = "Australia/Perth"
 
 
