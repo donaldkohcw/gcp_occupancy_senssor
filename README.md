@@ -100,3 +100,15 @@ Ensure the task runs with proper permissions for ( give full access to your user
   Windows environment (PowerShell + Task Scheduler)
 
 🧩 Notes : Temporary download folders are kept unless you uncomment the cleanup lines
+
+📅 Daily Automation (run_daily_auto.ps1 + run_process_all_users.py)
+
+  run_daily_auto.ps1 is the scheduled entry point (Windows Task Scheduler task "GCP_Occupancy_Daily", daily at 08:30, logon type Interactive so the mapped V: drive is available). It runs, in order:
+
+  1) python combine_daily.py (no args) — downloads/combines yesterday's and today's folders.
+
+  2) python run_process_all_users.py --<folder> — once for yesterday's folder number and once for today's, each derived from the date using the same BASE_FOLDER_NUM (20402) / BASE_DATE (2025-11-10) mapping combine_daily.py uses internally, so no folder number ever needs manual updating.
+
+  Output/errors are appended to run_daily_auto.log next to the script.
+
+  To inspect or change the schedule: Task Scheduler > Task Scheduler Library > GCP_Occupancy_Daily.
