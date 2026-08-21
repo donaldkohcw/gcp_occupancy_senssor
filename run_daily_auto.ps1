@@ -1,7 +1,10 @@
 # ===== run_daily_auto.ps1 =====
 # Scheduled entry point for the daily occupancy pipeline. Runs:
 #   1) combine_daily.py            (no args -> auto-downloads/combines yesterday + today)
-#   2) run_process_all_users.py    (once per folder number, for yesterday and today)
+#   2) run_process_all_users.py    (yesterday's folder only)
+# Today's folder is intentionally NOT processed/plotted here: sensors keep
+# appending to today's log until tomorrow morning, so a plot made today
+# would only show a partial day and get silently redone tomorrow anyway.
 # Folder numbers are derived from the date using the same BASE_FOLDER_NUM/BASE_DATE
 # mapping combine_daily.py and run_process_all_users.py use internally, so this
 # script never needs manual folder numbers updated.
@@ -44,20 +47,16 @@ catch {
     Add-Content $Log "[ERROR] combine_daily.py: $_"
 }
 
-$today           = Get-Date
-$yesterday       = $today.AddDays(-1)
+$yesterday       = (Get-Date).AddDays(-1)
 $folderYesterday = Get-FolderNumber $yesterday
-$folderToday     = Get-FolderNumber $today
 
-foreach ($folder in @($folderYesterday, $folderToday)) {
-    try {
-        Add-Content $Log "`n--- run_process_all_users.py --$folder ---"
-        & $PythonExe (Join-Path $ScriptDir "run_process_all_users.py") "--$folder" *>> $Log
-        Add-Content $Log "run_process_all_users.py --$folder exit code: $LASTEXITCODE"
-    }
-    catch {
-        Add-Content $Log "[ERROR] run_process_all_users.py --$folder`: $_"
-    }
+try {
+    Add-Content $Log "`n--- run_process_all_users.py --$folderYesterday ---"
+    & $PythonExe (Join-Path $ScriptDir "run_process_all_users.py") "--$folderYesterday" *>> $Log
+    Add-Content $Log "run_process_all_users.py --$folderYesterday exit code: $LASTEXITCODE"
+}
+catch {
+    Add-Content $Log "[ERROR] run_process_all_users.py --$folderYesterday`: $_"
 }
 
 Add-Content $Log "`n===== Task ended at $(Get-Date -Format 'dd/MM/yyyy HH:mm:ss') ====="
