@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -28,6 +29,13 @@ import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import colormaps
+
+# Status prints below use non-ASCII characters (e.g. "->" as "→"). Some
+# launchers (scheduled tasks, non-UTF-8 consoles) default stdout/stderr to a
+# codepage that can't encode them, which crashes the whole run mid-plot.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 LINE_STYLE = {
     "linestyle": "-",
