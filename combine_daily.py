@@ -21,6 +21,10 @@ LOCAL_BASE = r"V:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs\all"
 OUTPUT_BASE = r"V:\R&D\STAFF FOLDERS\DonaldK\Sensor_logs"
 LOCAL_TZ = "Australia/Perth"
 
+# A hung download (no timeout) previously froze the whole nightly run for 34+ hours.
+DOWNLOAD_TIMEOUT_SECONDS = 60
+DOWNLOAD_MAX_ATTEMPTS = 3
+
 
 # === STEP 1: Map date -> folder number ===
 def get_folder_number_for_date(target_date):
@@ -80,16 +84,26 @@ def download_gcs_folder(bucket_name, prefix, local_path):
             # Skip empty "folder" blobs
             if blob.name.endswith('/'):
                 continue
-            
+
             # Extract file name and create local directory structure
             relative_path = blob.name[len(prefix):]
             local_file = os.path.join(local_path, relative_path)
             os.makedirs(os.path.dirname(local_file), exist_ok=True)
-            
-            # Download the blob
-            blob.download_to_filename(local_file)
-            print(f"Downloaded: {blob.name}")
-        
+
+            # A stalled connection with no timeout can hang the whole
+            # pipeline for days (seen 2026-09-07/08 on Workroom's folder);
+            # retry a couple of times, then skip the file and move on.
+            for attempt in range(1, DOWNLOAD_MAX_ATTEMPTS + 1):
+                try:
+                    blob.download_to_filename(local_file, timeout=DOWNLOAD_TIMEOUT_SECONDS)
+                    print(f"Downloaded: {blob.name}")
+                    break
+                except Exception as e:
+                    if attempt < DOWNLOAD_MAX_ATTEMPTS:
+                        print(f"[WARN] Retry {attempt}/{DOWNLOAD_MAX_ATTEMPTS} for {blob.name}: {e}")
+                    else:
+                        print(f"[WARN] Giving up on {blob.name} after {DOWNLOAD_MAX_ATTEMPTS} attempts: {e}")
+
         return True
     except DefaultCredentialsError as e:
         print(f"\n[ERROR] Authentication failed: {str(e)}")
